@@ -127,6 +127,7 @@ func TestRead(t *testing.T) {
 			want: want{
 				observed: &v1alpha1.PersonalSecurityEnvironmentObservation{
 					Name:             "test-pse",
+					Purpose:          v1alpha1.PSEPurposeX509,
 					X509ProviderName: "test-provider",
 					CertificateRefs: []v1alpha1.CertificateRef{
 						{ID: new(1), Name: new("cert1")},
@@ -166,6 +167,7 @@ func TestRead(t *testing.T) {
 			want: want{
 				observed: &v1alpha1.PersonalSecurityEnvironmentObservation{
 					Name:             "simple-pse",
+					Purpose:          v1alpha1.PSEPurposeX509,
 					X509ProviderName: "simple-provider",
 					CertificateRefs:  nil,
 				},
@@ -202,6 +204,7 @@ func TestRead(t *testing.T) {
 			want: want{
 				observed: &v1alpha1.PersonalSecurityEnvironmentObservation{
 					Name:             "no-provider-pse",
+					Purpose:          v1alpha1.PSEPurposeX509,
 					X509ProviderName: "",
 					CertificateRefs: []v1alpha1.CertificateRef{
 						{ID: new(3), Name: new("cert3")},
@@ -592,7 +595,7 @@ func TestUpdate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := Client{DB: tc.fields.db}
-			err := c.Update(tc.args.ctx, tc.args.pseName, tc.args.toAdd, tc.args.toRemove, tc.args.providerName)
+			err := c.Update(tc.args.ctx, tc.args.pseName, v1alpha1.PSEPurposeX509, tc.args.toAdd, tc.args.toRemove, nil, nil, tc.args.providerName)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nc.Update(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}

@@ -1,0 +1,96 @@
+# Example JWT-based single sign-on flow for HANA Cloud.
+#
+# Apply in this order. The chain mirrors §6-§8 of tmp/jwt-setup/TUTORIAL.md:
+#   PublicKey -> PersonalSecurityEnvironment (purpose JWT) -> JWTProvider -> User
+#
+# Replace the PEM and issuer with the values from your IdP.
+---
+apiVersion: admin.hana.sap.crossplane.io/v1alpha1
+kind: PublicKey
+metadata:
+  name: ias-signing-key
+  namespace: default
+spec:
+  forProvider:
+    name: IAS_SIGNING_KEY
+    comment: "IAS tenant signing key"
+    # Paste the IAS JWKS-derived PEM here, including the BEGIN/END markers.
+    pem: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...replace-me...
+      -----END PUBLIC KEY-----
+  providerConfigRef:
+    name: example
+---
+apiVersion: admin.hana.sap.crossplane.io/v1alpha1
+kind: JWTProvider
+metadata:
+  name: ias-jwt
+  namespace: default
+spec:
+  forProvider:
+    name: IAS_JWT
+    issuer: https://your-tenant.accounts400.ondemand.com
+    externalIdentityClaim: sub
+    caseInsensitiveIdentity: true
+    applicationUserClaim: azp
+    priority: 100
+    # Optional: gate which tokens HANA accepts. Value is the SCIM group UUID,
+    # not the display name.
+    claimFilters:
+      - claim: groups
+        value: 00000000-0000-0000-0000-000000000000
+  providerConfigRef:
+    name: example
+---
+apiVersion: admin.hana.sap.crossplane.io/v1alpha1
+kind: PersonalSecurityEnvironment
+metadata:
+  name: ias-jwt-pse
+  namespace: default
+spec:
+  forProvider:
+    name: IAS_JWT_PSE
+    purpose: JWT
+    jwtProviderRef:
+      providerRef:
+        name: ias-jwt
+    publicKeyRefs:
+      - name: IAS_SIGNING_KEY
+  providerConfigRef:
+    name: example
+---
+apiVersion: admin.hana.sap.crossplane.io/v1alpha1
+kind: Role
+metadata:
+  name: ias-engineer-readonly
+  namespace: default
+spec:
+  forProvider:
+    roleName: IAS_ENGINEER_READONLY
+    privileges:
+      - "MONITORING"
+      - "CATALOG READ"
+  providerConfigRef:
+    name: example
+---
+apiVersion: admin.hana.sap.crossplane.io/v1alpha1
+kind: User
+metadata:
+  name: andraz-user
+  namespace: default
+spec:
+  forProvider:
+    username: ANDRAZ_USER
+    restrictedUser: true
+    isPasswordLifetimeCheckEnabled: false
+    enableClientConnect: true
+    authentication:
+      jwtProviders:
+        - providerRef:
+            name: ias-jwt
+          externalIdentity: andraz.bajt@sap.com
+    roles:
+      - IAS_ENGINEER_READONLY
+  providerConfigRef:
+    name: example
